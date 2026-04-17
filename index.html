@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVG Akıllı Ekran - V46.1 (Fix)</title>
+    <title>SVG Akıllı Ekran - V47 (Döviz + Otomatik SVG Yenileme)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
@@ -19,32 +19,41 @@
     <script>
         // --- AYARLAR VE API YAPILANDIRMASI ---
         const SWIPER_CONFIG = { speed: 1500, effect: 'cube' };
-        // Kendi API anahtarınızı buraya yazın. Yeni alındıysa aktif olması 2 saati bulabilir.
-        const WEATHER_API_KEY = "97fe4c9ee7efb72f3e0520ceb21bba8b"; 
+        const WEATHER_API_KEY = "97fe4c9ee7efb72f3e0520ceb21bba8b"; // OpenWeatherMap anahtarınız
         const CITY = "Istanbul";
         
         let currentSettingsString = ""; 
         let currentHtmlString = "";
+        let svgVersions = {}; // SVG dosyalarının son değiştirilme tarihlerini tutar
+        
         let swiperInstance = null;
         let intervalIds = [];
         let liveData = { temp: "--", usd: "--", eur: "--" };
 
+        // 1. CANLI VERİLERİ ÇEKME FONKSİYONLARI (Döviz API'si güncellendi)
         async function updateLiveData() {
             try {
+                // Hava Durumu
                 const wRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${CITY}&appid=${WEATHER_API_KEY}&units=metric&lang=tr`);
-                if (!wRes.ok) throw new Error("Hava durumu API hatası: " + wRes.status);
-                const wData = await wRes.json();
-                liveData.temp = Math.round(wData.main.temp) + "°C";
+                if (wRes.ok) {
+                    const wData = await wRes.json();
+                    liveData.temp = Math.round(wData.main.temp) + "°C";
+                }
 
-                const cRes = await fetch("https://api.exchangerate-api.com/v4/latest/TRY");
-                const cData = await cRes.json();
-                liveData.usd = (1 / cData.rates.USD).toFixed(2) + " TL";
-                liveData.eur = (1 / cData.rates.EUR).toFixed(2) + " TL";
+                // Döviz (Daha stabil çalışan yeni ücretsiz API)
+                const cRes = await fetch("https://open.er-api.com/v6/latest/USD");
+                if (cRes.ok) {
+                    const cData = await cRes.json();
+                    liveData.usd = cData.rates.TRY.toFixed(2) + " TL";
+                    // Euro'yu bulmak için Çapraz Kur: TRY / EUR
+                    liveData.eur = (cData.rates.TRY / cData.rates.EUR).toFixed(2) + " TL";
+                }
             } catch (e) { 
-                console.warn("Canlı veriler henüz çekilemedi. (API anahtarınız yeni ise aktif olmasını bekleyin.)", e.message); 
+                console.warn("Canlı veri güncellemesi sırasında hata oluştu.", e.message); 
             }
         }
 
+        // 2. SVG İÇİNE VERİ ENJEKTE ETME
         function injectDataToSVG(svgDoc) {
             if (!svgDoc) return;
             const elements = {
@@ -60,8 +69,7 @@
             }
         }
 
-        // Tam ekran zorlamasını kaldırdık (F11 veya Kiosk modunu kullanın)
-        // Bellek sızıntılarını önlemek için genel yenileme (4 saat)
+        // Genel yenileme (4 saat)
         setTimeout(() => window.location.reload(), 4 * 60 * 60 * 1000);
 
         function clearAllIntervals() { intervalIds.forEach(clearInterval); intervalIds = []; }
@@ -84,6 +92,14 @@
                     const htmlRes = await fetch(window.location.href.split('?')[0] + '?t=' + cacheBuster);
                     currentHtmlString = await htmlRes.text();
                 } catch(e) {}
+
+                // YENİ: Başlangıçta tüm SVG dosyalarının son değiştirilme tarihlerini kaydet
+                for (let slide of settings) {
+                    try {
+                        const hRes = await fetch(slide.file + '?t=' + cacheBuster, { method: 'HEAD' });
+                        svgVersions[slide.file] = hRes.headers.get('Last-Modified') || hRes.headers.get('content-length');
+                    } catch(e) {}
+                }
                 
                 const container = document.getElementById('slide-container'); 
                 container.innerHTML = ""; 
@@ -95,7 +111,6 @@
                     
                     const obj = document.createElement("object");
                     obj.data = slide.file + '?v=' + cacheBuster; 
-                    // HATANIN ÇÖZÜLDÜĞÜ YER: image/svg+xml olarak düzeltildi
                     obj.type = "image/svg+xml"; 
 
                     obj.addEventListener('load', function() {
@@ -135,13 +150,42 @@
                     });
                 }, 100);
                 
+                // Arka plan kod değişikliği kontrolü
                 const checkUpdate = setInterval(async () => {
                     try {
-                        const r = await fetch('settings.json?t=' + Math.floor(Date.now()/10000));
+                        let currentCacheBuster = Math.floor(Date.now()/10000);
+
+                        // 1. JSON Kontrolü
+                        const r = await fetch('settings.json?t=' + currentCacheBuster);
                         const nConf = await r.json();
-                        if (JSON.stringify(nConf) !== currentSettingsString) window.location.reload();
+                        if (JSON.stringify(nConf) !== currentSettingsString) {
+                            window.location.reload();
+                            return;
+                        }
+
+                        // 2. HTML Kontrolü
+                        if (currentHtmlString !== "") {
+                            const htmlCheckRes = await fetch(window.location.href.split('?')[0] + '?t=' + currentCacheBuster);
+                            const newHtmlString = await htmlCheckRes.text();
+                            if (newHtmlString !== currentHtmlString) {
+                                window.location.reload();
+                                return;
+                            }
+                        }
+
+                        // 3. YENİ: SVG Dosyalarının Anlık Kontrolü
+                        for (let slide of nConf) {
+                            const hRes = await fetch(slide.file + '?t=' + currentCacheBuster, { method: 'HEAD' });
+                            const currentMod = hRes.headers.get('Last-Modified') || hRes.headers.get('content-length');
+                            
+                            if (svgVersions[slide.file] && currentMod && currentMod !== svgVersions[slide.file]) {
+                                window.location.reload(); // SVG değiştirilmiş, sayfayı hemen yenile
+                                return;
+                            }
+                        }
+
                     } catch (e) {}
-                }, 15000);
+                }, 10000); // 10 saniyede bir kontrol et
                 intervalIds.push(checkUpdate);
 
             } catch (error) { setTimeout(initSlider, 5000); }
