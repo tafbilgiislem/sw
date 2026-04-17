@@ -1,22 +1,44 @@
 [
   {
-    "file": "slayt.svg",
-    "effect": "cube",
-    "duration": 8000
+    "file": "slayt1.svg",
+    "duration": 8000,
+    "rotations": [
+      {
+        "id": "degisen-resim-1",
+        "images": ["resim1.jpg", "resim2.jpg", "resim3.jpg"]
+      },
+      {
+        "id": "degisen-resim-2",
+        "images": ["resim4.jpg", "resim5.jpg", "resim6.jpg"]
+      }
+    ]
   },
   {
-    "file": "kampanya.svg",
-    "effect": "cube",
-    "duration": 3000
+    "file": "slayt2.svg",
+    "duration": 8000,
+    "rotations": [
+      {
+        "id": "degisen-resim-1",
+        "images": ["resim1.jpg", "resim2.jpg", "resim3.jpg"]
+      },
+      {
+        "id": "degisen-resim-2",
+        "images": ["resim4.jpg", "resim5.jpg", "resim6.jpg"]
+      }
+    ]
   },
   {
-    "file": "slayt.svg",
-    "effect": "cube",
-    "duration": 8000
-  },
-  {
-    "file": "duyuru.svg",
-    "effect": "cube",
-    "duration": 3000
+    "file": "slayt3.svg",
+    "duration": 8000,
+    "rotations": [
+      {
+       "id": "degisen-resim-1",
+        "images": ["resim1.jpg", "resim2.jpg", "resim3.jpg"]
+      },
+      {
+        "id": "degisen-resim-2",
+        "images": ["resim4.jpg", "resim5.jpg", "resim6.jpg"]
+      }
+    ]
   }
 ]
