@@ -1,15 +1,23 @@
 [
   {
     "file": "slayt.svg",
-    "duration": 8000,
+    "duration": 3000,
     "rotations": [
       {
         "id": "degisen-resim-1",
-        "images": ["resim1.jpg", "resim2.jpg", "resim3.jpg"]
+        "images": [
+          "resim1.jpg",
+          "resim2.jpg",
+          "resim3.jpg"
+        ]
       },
       {
         "id": "degisen-resim-2",
-        "images": ["resim4.jpg", "resim5.jpg", "resim6.jpg"]
+        "images": [
+          "resim4.jpg",
+          "resim5.jpg",
+          "resim6.jpg"
+        ]
       }
     ]
   },
@@ -19,11 +27,19 @@
     "rotations": [
       {
         "id": "degisen-resim-1",
-        "images": ["resim1.jpg", "resim2.jpg", "resim3.jpg"]
+        "images": [
+          "resim1.jpg",
+          "resim2.jpg",
+          "resim3.jpg"
+        ]
       },
       {
         "id": "degisen-resim-2",
-        "images": ["resim4.jpg", "resim5.jpg", "resim6.jpg"]
+        "images": [
+          "resim4.jpg",
+          "resim5.jpg",
+          "resim6.jpg"
+        ]
       }
     ]
   },
@@ -32,26 +48,42 @@
     "duration": 8000,
     "rotations": [
       {
-       "id": "degisen-resim-1",
-        "images": ["resim1.jpg", "resim2.jpg", "resim3.jpg"]
+        "id": "degisen-resim-1",
+        "images": [
+          "resim1.jpg",
+          "resim2.jpg",
+          "resim3.jpg"
+        ]
       },
       {
         "id": "degisen-resim-2",
-        "images": ["resim4.jpg", "resim5.jpg", "resim6.jpg"]
-              }
+        "images": [
+          "resim4.jpg",
+          "resim5.jpg",
+          "resim6.jpg"
+        ]
+      }
     ]
   },
   {
     "file": "slayt.svg",
-    "duration": 8000,
+    "duration": 3000,
     "rotations": [
       {
-       "id": "degisen-resim-1",
-        "images": ["resim1.jpg", "resim2.jpg", "resim3.jpg"]
+        "id": "degisen-resim-1",
+        "images": [
+          "resim1.jpg",
+          "resim2.jpg",
+          "resim3.jpg"
+        ]
       },
       {
         "id": "degisen-resim-2",
-        "images": ["resim4.jpg", "resim5.jpg", "resim6.jpg"]
+        "images": [
+          "resim4.jpg",
+          "resim5.jpg",
+          "resim6.jpg"
+        ]
       }
     ]
   }
