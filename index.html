@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVG Akıllı Ekran - V46 (API Integrated)</title>
+    <title>SVG Akıllı Ekran - V46.1 (Fix)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
@@ -19,7 +19,8 @@
     <script>
         // --- AYARLAR VE API YAPILANDIRMASI ---
         const SWIPER_CONFIG = { speed: 1500, effect: 'cube' };
-        const WEATHER_API_KEY = "97fe4c9ee7efb72f3e0520ceb21bba8b"; // OpenWeatherMap'ten ücretsiz alabilirsiniz
+        // Kendi API anahtarınızı buraya yazın. Yeni alındıysa aktif olması 2 saati bulabilir.
+        const WEATHER_API_KEY = "97fe4c9ee7efb72f3e0520ceb21bba8b"; 
         const CITY = "Istanbul";
         
         let currentSettingsString = ""; 
@@ -28,25 +29,22 @@
         let intervalIds = [];
         let liveData = { temp: "--", usd: "--", eur: "--" };
 
-        // 1. CANLI VERİLERİ ÇEKME FONKSİYONLARI
         async function updateLiveData() {
             try {
-                // Hava Durumu (Örnek API)
                 const wRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${CITY}&appid=${WEATHER_API_KEY}&units=metric&lang=tr`);
+                if (!wRes.ok) throw new Error("Hava durumu API hatası: " + wRes.status);
                 const wData = await wRes.json();
                 liveData.temp = Math.round(wData.main.temp) + "°C";
 
-                // Döviz (Ücretsiz bir servis örneği)
                 const cRes = await fetch("https://api.exchangerate-api.com/v4/latest/TRY");
                 const cData = await cRes.json();
                 liveData.usd = (1 / cData.rates.USD).toFixed(2) + " TL";
                 liveData.eur = (1 / cData.rates.EUR).toFixed(2) + " TL";
-                
-                console.log("Canlı veriler güncellendi:", liveData);
-            } catch (e) { console.warn("API Verisi çekilemedi."); }
+            } catch (e) { 
+                console.warn("Canlı veriler henüz çekilemedi. (API anahtarınız yeni ise aktif olmasını bekleyin.)", e.message); 
+            }
         }
 
-        // 2. SVG İÇİNE VERİ ENJEKTE ETME
         function injectDataToSVG(svgDoc) {
             if (!svgDoc) return;
             const elements = {
@@ -62,8 +60,8 @@
             }
         }
 
-        // Tam Ekran ve 4 saatte bir tazeleme
-        setTimeout(() => { const d = document.documentElement; const r = d.requestFullscreen || d.webkitRequestFullScreen || d.mozRequestFullScreen || d.msRequestFullscreen; if (r) r.call(d).catch(e=>{}); }, 5000);
+        // Tam ekran zorlamasını kaldırdık (F11 veya Kiosk modunu kullanın)
+        // Bellek sızıntılarını önlemek için genel yenileme (4 saat)
         setTimeout(() => window.location.reload(), 4 * 60 * 60 * 1000);
 
         function clearAllIntervals() { intervalIds.forEach(clearInterval); intervalIds = []; }
@@ -73,8 +71,8 @@
                 clearAllIntervals();
                 if (swiperInstance !== null) swiperInstance.destroy(true, true);
                 
-                await updateLiveData(); // İlk açılışta verileri çek
-                const timerData = setInterval(updateLiveData, 10 * 60 * 1000); // 10 dakikada bir verileri tazele
+                await updateLiveData(); 
+                const timerData = setInterval(updateLiveData, 10 * 60 * 1000);
                 intervalIds.push(timerData);
 
                 let cacheBuster = Math.floor(Date.now() / 30000);
@@ -97,17 +95,16 @@
                     
                     const obj = document.createElement("object");
                     obj.data = slide.file + '?v=' + cacheBuster; 
-                    obj.type = "image/xml+svg"; // image/svg+xml yerine bazı TV'lerde xml+svg daha stabildir
+                    // HATANIN ÇÖZÜLDÜĞÜ YER: image/svg+xml olarak düzeltildi
+                    obj.type = "image/svg+xml"; 
 
                     obj.addEventListener('load', function() {
                         const svgDoc = obj.contentDocument;
                         if (!svgDoc) return;
 
-                        // API verilerini ve Saati her saniye güncelle
                         const clockTimer = setInterval(() => injectDataToSVG(svgDoc), 1000);
                         intervalIds.push(clockTimer);
 
-                        // Resim Rotasyonları
                         const setupRotation = (id, images) => {
                             const imgEl = svgDoc.getElementById(id);
                             if (imgEl && images?.length > 0) {
@@ -138,7 +135,6 @@
                     });
                 }, 100);
                 
-                // Arka plan kod değişikliği kontrolü
                 const checkUpdate = setInterval(async () => {
                     try {
                         const r = await fetch('settings.json?t=' + Math.floor(Date.now()/10000));
