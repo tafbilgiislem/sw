@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVG Ekran Oynatıcı - Swiper TV Optimize V45</title>
+    <title>SVG Akıllı Ekran - V46 (API Integrated)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
@@ -17,48 +17,79 @@
     
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script>
-        const SWIPER_CONFIG = { speed: 2500, effect: 'coverflow' };
+        // --- AYARLAR VE API YAPILANDIRMASI ---
+        const SWIPER_CONFIG = { speed: 1500, effect: 'cube' };
+        const WEATHER_API_KEY = "97fe4c9ee7efb72f3e0520ceb21bba8b"; // OpenWeatherMap'ten ücretsiz alabilirsiniz
+        const CITY = "Istanbul";
+        
         let currentSettingsString = ""; 
         let currentHtmlString = "";
         let swiperInstance = null;
-        let intervalIds = []; // Bellek yönetimi için döngüleri takip eden dizi
+        let intervalIds = [];
+        let liveData = { temp: "--", usd: "--", eur: "--" };
 
-        // Tam ekran ve periyodik sayfa yenileme
-        setTimeout(() => { const d = document.documentElement; const r = d.requestFullscreen || d.webkitRequestFullScreen || d.mozRequestFullScreen || d.msRequestFullscreen; if (r) r.call(d).catch(e=> console.warn("Tam ekran engellendi:", e)); }, 5000);
+        // 1. CANLI VERİLERİ ÇEKME FONKSİYONLARI
+        async function updateLiveData() {
+            try {
+                // Hava Durumu (Örnek API)
+                const wRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${CITY}&appid=${WEATHER_API_KEY}&units=metric&lang=tr`);
+                const wData = await wRes.json();
+                liveData.temp = Math.round(wData.main.temp) + "°C";
+
+                // Döviz (Ücretsiz bir servis örneği)
+                const cRes = await fetch("https://api.exchangerate-api.com/v4/latest/TRY");
+                const cData = await cRes.json();
+                liveData.usd = (1 / cData.rates.USD).toFixed(2) + " TL";
+                liveData.eur = (1 / cData.rates.EUR).toFixed(2) + " TL";
+                
+                console.log("Canlı veriler güncellendi:", liveData);
+            } catch (e) { console.warn("API Verisi çekilemedi."); }
+        }
+
+        // 2. SVG İÇİNE VERİ ENJEKTE ETME
+        function injectDataToSVG(svgDoc) {
+            if (!svgDoc) return;
+            const elements = {
+                "hava-durumu": liveData.temp,
+                "dolar-kur": liveData.usd,
+                "euro-kur": liveData.eur,
+                "guncel-saat": new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+            };
+
+            for (let [id, val] of Object.entries(elements)) {
+                const el = svgDoc.getElementById(id);
+                if (el) el.textContent = val;
+            }
+        }
+
+        // Tam Ekran ve 4 saatte bir tazeleme
+        setTimeout(() => { const d = document.documentElement; const r = d.requestFullscreen || d.webkitRequestFullScreen || d.mozRequestFullScreen || d.msRequestFullscreen; if (r) r.call(d).catch(e=>{}); }, 5000);
         setTimeout(() => window.location.reload(), 4 * 60 * 60 * 1000);
 
-        // Tüm aktif döngüleri temizleme fonksiyonu (RAM şişmesini önler)
-        function clearAllIntervals() {
-            intervalIds.forEach(clearInterval);
-            intervalIds = [];
-        }
+        function clearAllIntervals() { intervalIds.forEach(clearInterval); intervalIds = []; }
 
         async function initSlider() {
             try {
-                // Her yeni başlatmada eski ayarları ve döngüleri sıfırla
                 clearAllIntervals();
-                if (swiperInstance !== null) {
-                    swiperInstance.destroy(true, true);
-                    swiperInstance = null;
-                }
+                if (swiperInstance !== null) swiperInstance.destroy(true, true);
+                
+                await updateLiveData(); // İlk açılışta verileri çek
+                const timerData = setInterval(updateLiveData, 10 * 60 * 1000); // 10 dakikada bir verileri tazele
+                intervalIds.push(timerData);
 
                 let cacheBuster = Math.floor(Date.now() / 30000);
-                
-                // Ayarları Çek
                 const setRes = await fetch('settings.json?t=' + cacheBuster);
                 const settings = await setRes.json();
                 currentSettingsString = JSON.stringify(settings);
 
-                // HTML'i Çek
                 try {
                     const htmlRes = await fetch(window.location.href.split('?')[0] + '?t=' + cacheBuster);
                     currentHtmlString = await htmlRes.text();
-                } catch(e) { console.warn("HTML başlangıçta okunamadı:", e); }
+                } catch(e) {}
                 
                 const container = document.getElementById('slide-container'); 
                 container.innerHTML = ""; 
                 
-                // Slaytları Oluştur
                 for (let slide of settings) {
                     const slideDiv = document.createElement('div');
                     slideDiv.className = 'swiper-slide';
@@ -66,83 +97,58 @@
                     
                     const obj = document.createElement("object");
                     obj.data = slide.file + '?v=' + cacheBuster; 
-                    obj.type = "image/svg+xml";
+                    obj.type = "image/xml+svg"; // image/svg+xml yerine bazı TV'lerde xml+svg daha stabildir
 
                     obj.addEventListener('load', function() {
-                        try {
-                            const svgDoc = obj.contentDocument; 
-                            if (!svgDoc) return;
-                            
-                            const setupRotation = (id, images) => {
-                                const imgEl = svgDoc.getElementById(id);
-                                if (imgEl && images && images.length > 0) {
-                                    let idx = 0; 
-                                    imgEl.setAttribute("href", images[0]); 
-                                    imgEl.setAttributeNS("http://www.w3.org/1999/xlink", "href", images[0]);
-                                    
-                                    const timer = setInterval(() => {
-                                        if (settings.length > 1 && !slideDiv.classList.contains("swiper-slide-active") && !slideDiv.classList.contains("swiper-slide-duplicate-active")) return;
-                                        idx = (idx + 1) % images.length; 
-                                        imgEl.setAttribute("href", images[idx]); 
-                                        imgEl.setAttributeNS("http://www.w3.org/1999/xlink", "href", images[idx]);
-                                    }, 3000);
-                                    intervalIds.push(timer); // Döngüyü listeye ekle
-                                }
-                            };
+                        const svgDoc = obj.contentDocument;
+                        if (!svgDoc) return;
 
-                            // JSON'dan gelen dinamik rotasyon varsa onu kullan, yoksa varsayılanı kullan (Geriye dönük uyumluluk)
-                            if (slide.rotations && Array.isArray(slide.rotations)) {
-                                slide.rotations.forEach(rot => setupRotation(rot.id, rot.images));
-                            } else {
-                                setupRotation("degisen-resim-1", ["resim1.jpg", "resim2.jpg", "resim3.jpg"]);
-                                setupRotation("degisen-resim-2", ["resim4.jpg", "resim5.jpg", "resim6.jpg"]);
+                        // API verilerini ve Saati her saniye güncelle
+                        const clockTimer = setInterval(() => injectDataToSVG(svgDoc), 1000);
+                        intervalIds.push(clockTimer);
+
+                        // Resim Rotasyonları
+                        const setupRotation = (id, images) => {
+                            const imgEl = svgDoc.getElementById(id);
+                            if (imgEl && images?.length > 0) {
+                                let idx = 0;
+                                const timer = setInterval(() => {
+                                    if (settings.length > 1 && !slideDiv.classList.contains("swiper-slide-active")) return;
+                                    idx = (idx + 1) % images.length;
+                                    imgEl.setAttribute("href", images[idx]);
+                                }, 3000);
+                                intervalIds.push(timer);
                             }
-                        } catch(e) { console.error("SVG İşleme Hatası:", e); }
+                        };
+
+                        if (slide.rotations) {
+                            slide.rotations.forEach(rot => setupRotation(rot.id, rot.images));
+                        }
                     });
                     
                     slideDiv.appendChild(obj); 
                     container.appendChild(slideDiv);
                 }
 
-                // Swiper'ı Başlat
                 setTimeout(() => {
                     swiperInstance = new Swiper('.mySwiper', {
-                        effect: SWIPER_CONFIG.effect, speed: SWIPER_CONFIG.speed, grabCursor: true, loop: settings.length > 1, observer: true, observeParents: true,
+                        effect: SWIPER_CONFIG.effect, speed: SWIPER_CONFIG.speed, loop: settings.length > 1,
                         autoplay: settings.length > 1 ? { delay: 5000, disableOnInteraction: false } : false,
-                        cubeEffect: { shadow: true, slideShadows: true, shadowOffset: 20, shadowScale: 0.94 },
-                        coverflowEffect: { rotate: 50, stretch: 0, depth: 100, modifier: 1, slideShadows: true },
-                        cardsEffect: { slideShadows: true }
+                        cubeEffect: { shadow: true, slideShadows: true, shadowOffset: 20, shadowScale: 0.94 }
                     });
                 }, 100);
                 
-                // Arka Plan Değişiklik Kontrolcüsü
-                const checkTimer = setInterval(async () => {
+                // Arka plan kod değişikliği kontrolü
+                const checkUpdate = setInterval(async () => {
                     try {
-                        let currentCacheBuster = Math.floor(Date.now() / 10000);
-
-                        const r = await fetch('settings.json?t=' + currentCacheBuster);
+                        const r = await fetch('settings.json?t=' + Math.floor(Date.now()/10000));
                         const nConf = await r.json();
-                        if (JSON.stringify(nConf) !== currentSettingsString) {
-                            window.location.reload();
-                            return;
-                        }
+                        if (JSON.stringify(nConf) !== currentSettingsString) window.location.reload();
+                    } catch (e) {}
+                }, 15000);
+                intervalIds.push(checkUpdate);
 
-                        if (currentHtmlString !== "") {
-                            const htmlCheckRes = await fetch(window.location.href.split('?')[0] + '?t=' + currentCacheBuster);
-                            const newHtmlString = await htmlCheckRes.text();
-                            
-                            if (newHtmlString !== currentHtmlString) {
-                                window.location.reload();
-                            }
-                        }
-                    } catch (e) { /* Ağ hatası durumunda sessiz kal */ }
-                }, 10000);
-                intervalIds.push(checkTimer);
-
-            } catch (error) { 
-                console.error("Başlatma Hatası:", error);
-                setTimeout(initSlider, 5000); 
-            }
+            } catch (error) { setTimeout(initSlider, 5000); }
         }
         
         initSlider();
