@@ -1,0 +1,22 @@
+[
+  {
+    "file": "slayt.svg",
+    "effect": "cube",
+    "duration": 7000
+  },
+  {
+    "file": "kampanya.svg",
+    "effect": "cube",
+    "duration": 10000
+  },
+  {
+    "file": "slayt.svg",
+    "effect": "cube",
+    "duration": 5000
+  },
+  {
+    "file": "duyuru.svg",
+    "effect": "cube",
+    "duration": 10000
+  }
+]
