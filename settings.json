@@ -1,6 +1,6 @@
 [
   {
-    "file": "slayt1.svg",
+    "file": "slayt.svg",
     "duration": 8000,
     "rotations": [
       {
@@ -14,7 +14,7 @@
     ]
   },
   {
-    "file": "slayt2.svg",
+    "file": "kampanya.svg",
     "duration": 8000,
     "rotations": [
       {
@@ -28,7 +28,21 @@
     ]
   },
   {
-    "file": "slayt3.svg",
+    "file": "duyuru.svg",
+    "duration": 8000,
+    "rotations": [
+      {
+       "id": "degisen-resim-1",
+        "images": ["resim1.jpg", "resim2.jpg", "resim3.jpg"]
+      },
+      {
+        "id": "degisen-resim-2",
+        "images": ["resim4.jpg", "resim5.jpg", "resim6.jpg"]
+              }
+    ]
+  },
+  {
+    "file": "slayt.svg",
     "duration": 8000,
     "rotations": [
       {
